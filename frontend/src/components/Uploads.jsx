@@ -416,7 +416,7 @@ const Uploads = (props) => {
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
                       {/* Transformer ID */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Transformer ID</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Transformer Serial</label>
                         <input
                           type="text"
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -428,7 +428,7 @@ const Uploads = (props) => {
 
                       {/* Date */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturing Date</label>
                         <input
                           type="date"
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -439,7 +439,7 @@ const Uploads = (props) => {
 
                       {/* File Type */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">File Type</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Choose File Format</label>
                         <select
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           value={fileType}
@@ -484,7 +484,7 @@ const Uploads = (props) => {
                             </div>
                           </div>
                         ) : (
-                          "No file selected"
+                          " "
                         )}
                       </div>
 
@@ -531,7 +531,7 @@ const Uploads = (props) => {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-500">No file selected</div>
+                        <div className="text-sm text-gray-500"> </div>
                       )}
                     </div>
                   </div>
