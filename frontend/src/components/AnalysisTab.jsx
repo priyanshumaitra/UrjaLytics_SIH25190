@@ -9,69 +9,37 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Download, BarChart3, TrendingUp } from "lucide-react";
+import { Download, BarChart3, TrendingUp, AlertCircle } from "lucide-react";
 
 /**
  * AnalysisTab Component
- * Displays FRA data visualization with statistics sidebar
+ * Displays FRA (Frequency Response Analysis) data visualization
+ * Data comes from backend API at /api/fra/analyze
+ * Shows comparison of up to 2 CSV files with statistics
  */
 const AnalysisTab = ({
   csvFiles = [],
   csvData = [],
+  statistics = [],
   chartHeight,
   setChartHeight,
-  zoomRange,
-  resetZoom,
+  analysisError = null,
+  isAnalyzing = false,
 }) => {
-  // Calculate statistics for each file
-  const getStatistics = (source) => {
-    if (!csvData || csvData.length === 0) return null;
-    const fileData = csvData.filter((d) => d && d.source === source);
-    if (fileData.length === 0) return null;
+  const color = ["#3B82F6", "#EF4444", "#10B981"];
 
-    const frequencies = fileData
-      .map((d) => d.frequency)
-      .filter((f) => typeof f === "number");
-    const magnitudes = fileData
-      .map((d) => d.magnitude)
-      .filter((m) => typeof m === "number");
-
-    if (frequencies.length === 0 || magnitudes.length === 0) return null;
-
-    return {
-      name: source,
-      dataPoints: fileData.length,
-      minFreq: Math.min(...frequencies).toFixed(2),
-      maxFreq: Math.max(...frequencies).toFixed(2),
-      minMag: Math.min(...magnitudes).toFixed(2),
-      maxMag: Math.max(...magnitudes).toFixed(2),
-      avgMag: (
-        magnitudes.reduce((a, b) => a + b, 0) / magnitudes.length
-      ).toFixed(2),
-    };
-  };
-
-  const stats = (csvFiles || [])
-    .map((f) => (f && f.name ? getStatistics(f.name) : null))
-    .filter(Boolean);
-
-  const color = ["#3B82F6", "#EF4444"];
-
-  // Prepare data for recharts - merge data by frequency
+  // Prepare chart data from backend response
   const processChartData = () => {
     if (!csvData || csvData.length === 0) return [];
 
-    // Group by frequency
+    // Backend already returns chart-ready data
+    // Just need to map it to recharts format with index
     const freqMap = new Map();
 
     csvData.forEach((d) => {
       if (!d || typeof d.frequency !== "number") return;
 
       const freq = parseFloat(d.frequency.toFixed(2));
-      const mag =
-        typeof d.magnitude === "number"
-          ? parseFloat(d.magnitude.toFixed(2))
-          : 0;
 
       if (!freqMap.has(freq)) {
         freqMap.set(freq, { frequency: freq });
@@ -81,14 +49,14 @@ const AnalysisTab = ({
       const source = d.source || "Unknown";
 
       // Store magnitude by source
-      if (source === (csvFiles[0]?.name || "File 1")) {
-        entry.magnitude = mag;
-      } else if (source === (csvFiles[1]?.name || "File 2")) {
-        entry.magnitude2 = mag;
+      if (source === csvFiles[0]?.name || source === "File 1") {
+        entry.magnitude = parseFloat(d.magnitude.toFixed(2));
+      } else if (source === csvFiles[1]?.name || source === "File 2") {
+        entry.magnitude2 = parseFloat(d.magnitude.toFixed(2));
       }
     });
 
-    // Convert to array, sort by frequency, and add index for X-axis
+    // Convert to array and add index for X-axis
     return Array.from(freqMap.values())
       .sort((a, b) => a.frequency - b.frequency)
       .map((entry, index) => ({
@@ -98,8 +66,6 @@ const AnalysisTab = ({
   };
 
   const chartData = processChartData();
-
-  // Check if we have valid data
   const hasValidData = chartData && chartData.length > 0;
 
   return (
@@ -112,28 +78,45 @@ const AnalysisTab = ({
               <BarChart3 className="w-6 h-6 text-blue-600" />
               <h2 className="text-2xl font-bold text-gray-800">FRA Analysis</h2>
             </div>
-            <button
-              onClick={() => {
-                // Export chart as image
-                const svg = document.querySelector("svg");
-                if (svg) {
-                  const url = URL.createObjectURL(
-                    new Blob([new XMLSerializer().serializeToString(svg)], {
-                      type: "image/svg+xml",
-                    })
-                  );
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = "fra-analysis.svg";
-                  link.click();
-                }
-              }}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-              title="Export chart"
-            >
-              <Download className="w-5 h-5 text-gray-600" />
-            </button>
+            {hasValidData && (
+              <button
+                onClick={() => {
+                  // Export chart as image
+                  const svg = document.querySelector("svg");
+                  if (svg) {
+                    const url = URL.createObjectURL(
+                      new Blob([new XMLSerializer().serializeToString(svg)], {
+                        type: "image/svg+xml",
+                      })
+                    );
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "fra-analysis.svg";
+                    link.click();
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Export chart"
+              >
+                <Download className="w-5 h-5 text-gray-600" />
+              </button>
+            )}
           </div>
+
+          {analysisError && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-sm text-red-700">{analysisError}</p>
+            </div>
+          )}
+
+          {isAnalyzing && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                Analyzing CSV files... Please wait
+              </p>
+            </div>
+          )}
 
           {hasValidData && chartData.length > 0 ? (
             <>
@@ -236,7 +219,7 @@ const AnalysisTab = ({
                       iconType="line"
                     />
 
-                    {/* Render continuous line for first file */}
+                    {/* Render line for first file */}
                     <Line
                       yAxisId="left"
                       type="monotone"
@@ -247,7 +230,7 @@ const AnalysisTab = ({
                       name={
                         csvFiles.length > 0
                           ? csvFiles[0].name?.replace(".csv", "")
-                          : "Magnitude"
+                          : "File 1"
                       }
                       isAnimationActive={false}
                       dot={false}
@@ -262,7 +245,9 @@ const AnalysisTab = ({
                         data={chartData}
                         stroke="#EF4444"
                         strokeWidth={2}
-                        name={csvFiles[1].name?.replace(".csv", "")}
+                        name={
+                          csvFiles[1]?.name?.replace(".csv", "") || "File 2"
+                        }
                         isAnimationActive={false}
                         dot={false}
                       />
@@ -274,12 +259,6 @@ const AnalysisTab = ({
               {/* Action Buttons */}
               <div className="mt-4 flex gap-3">
                 <button
-                  onClick={resetZoom}
-                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition-all text-sm"
-                >
-                  🔄 Reset Zoom
-                </button>
-                <button
                   onClick={() => {
                     // Generate report
                     const reportText = `
@@ -290,14 +269,15 @@ Generated: ${new Date().toLocaleString()}
 Files Analyzed: ${csvFiles.map((f) => f.name).join(", ")}
 
 Statistics:
-${stats
+${statistics
   .map(
     (s) => `
 ${s.name}:
-  - Data Points: ${s.dataPoints}
-  - Frequency Range: ${s.minFreq} - ${s.maxFreq} Hz
-  - Magnitude Range: ${s.minMag} - ${s.maxMag} dB
-  - Avg Magnitude: ${s.avgMag} dB
+  - Data Points: ${s.data_points}
+  - Frequency Range: ${s.min_freq} - ${s.max_freq} Hz
+  - Magnitude Range: ${s.min_mag} - ${s.max_mag} dB
+  - Avg Magnitude: ${s.avg_mag} dB
+  - Std Deviation: ${s.std_mag || "N/A"} dB
 `
   )
   .join("\n")}
@@ -321,7 +301,8 @@ ${s.name}:
                 <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 font-medium">No data to display</p>
                 <p className="text-sm text-gray-400">
-                  Upload CSV files to see analysis
+                  Upload CSV files with frequency and magnitude columns to see
+                  analysis
                 </p>
               </div>
             </div>
@@ -337,46 +318,56 @@ ${s.name}:
             <h3 className="text-lg font-semibold text-gray-800">Statistics</h3>
           </div>
 
-          {stats.length > 0 ? (
+          {statistics.length > 0 ? (
             <div className="space-y-4">
-              {stats.map((stat, idx) => (
+              {statistics.map((stat, idx) => (
                 <div
-                  key={stat.name}
+                  key={stat.name || idx}
                   className="p-3 rounded-lg border-l-4"
                   style={{
                     borderLeftColor: color[idx % color.length],
-                    backgroundColor: color[idx % color.length] + "10",
+                    backgroundColor: color[idx % color.length] + "15",
                   }}
                 >
                   <div className="font-semibold text-sm text-gray-800 truncate mb-2">
-                    {stat.name.replace(".csv", "")}
+                    {stat.name?.replace(".csv", "")}
                   </div>
 
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Points:</span>
                       <span className="font-medium text-gray-800">
-                        {stat.dataPoints}
+                        {stat.data_points}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Freq Range:</span>
-                      <span className="font-medium text-gray-800">
-                        {stat.minFreq} - {stat.maxFreq} Hz
-                      </span>
-                    </div>
+                    {stat.min_freq !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Freq Range:</span>
+                        <span className="font-medium text-gray-800">
+                          {stat.min_freq} - {stat.max_freq} Hz
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-gray-600">Mag Range:</span>
                       <span className="font-medium text-gray-800">
-                        {stat.minMag} - {stat.maxMag} dB
+                        {stat.min_mag} - {stat.max_mag} dB
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Avg Mag:</span>
                       <span className="font-medium text-gray-800">
-                        {stat.avgMag} dB
+                        {stat.avg_mag} dB
                       </span>
                     </div>
+                    {stat.std_mag !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Std Dev:</span>
+                        <span className="font-medium text-gray-800">
+                          {stat.std_mag} dB
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -385,7 +376,7 @@ ${s.name}:
             <div className="text-center py-8">
               <div className="text-sm text-gray-500 mb-2">No data loaded</div>
               <div className="text-xs text-gray-400">
-                Statistics will appear here
+                Statistics will appear after analysis
               </div>
             </div>
           )}

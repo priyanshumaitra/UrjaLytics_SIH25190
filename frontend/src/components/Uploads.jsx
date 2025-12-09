@@ -14,7 +14,9 @@ const Uploads = (props) => {
   const {
     csvFiles,
     csvData,
-    zoomRange,
+    statistics,
+    isAnalyzing,
+    analysisError,
     handleCSVUpload,
     removeCSVFile,
     resetZoom,
@@ -221,9 +223,11 @@ const Uploads = (props) => {
           <AnalysisTab
             csvFiles={csvFiles}
             csvData={csvData}
+            statistics={statistics}
             chartHeight={chartHeight}
             setChartHeight={setChartHeight}
-            zoomRange={zoomRange}
+            analysisError={analysisError}
+            isAnalyzing={isAnalyzing}
             resetZoom={resetZoom}
           />
         )}
